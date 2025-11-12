@@ -1,3 +1,5 @@
+Sabrina:
+
 Indexed 55393 docs → out_index
 Partials: 448
 Time: 5924.84s
@@ -5,3 +7,13 @@ Time: 5924.84s
 # indexed documents: 55393
 # unique tokens: 17849647
 Size of final artifacts (final_index.gz, lexicon.json, docstats.json): 1894464 KB
+
+Nhan:
+
+Indexed 55393 docs → out_index
+Partials: 457
+Time: 1928.81s
+
+# indexed documents: 55393
+# unique tokens: 18744058
+Size of final artifacts (final_index.gz, lexicon.json, docstats.json): 1979265 KB
