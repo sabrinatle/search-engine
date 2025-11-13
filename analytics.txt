@@ -36,3 +36,13 @@ Time: 2966.47s
 # indexed documents: 55393
 # unique tokens: 18051704
 Size of final artifacts (final_index.gz, lexicon.json, docstats.json): 1904560 KB
+
+Nhan run 3:
+
+Indexed 55393 docs → out_index
+Partials: 448
+Time: 2962.49s
+
+# indexed documents: 55393
+# unique tokens: 17849647
+Size of final artifacts (final_index.gz, lexicon.json, docstats.json): 1884226 KB
