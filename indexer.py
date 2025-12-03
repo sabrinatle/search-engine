@@ -73,6 +73,10 @@ def build_index(args):
         if not url:
             continue
 
+        # Skip duplicate URLs (exact duplicate detection)
+        if url in docid_by_url:
+            continue
+
         docid = len(docid_by_url)
         docid_by_url[url] = docid
         url_by_docid[docid] = url
