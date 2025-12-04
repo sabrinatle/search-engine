@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>{{ query }} - ICS Search</title>
+    <title>{{ query }} - CS 121 Search</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -83,7 +83,7 @@
     </div>
 
     <div class="stats">
-        Found {{ num_results }} results in {{ "%.2f"|format(search_time * 1000) }}ms
+        Found {{ num_results }} results in {{ "%.2f"|format(search_time) }}ms
     </div>
 
     {% if results %}
