@@ -1,6 +1,5 @@
-#!/usr/bin/env python3
 """
-ICS Search Engine - Search Component
+CS 121 Search Engine - Search Component
 Implements TF-IDF ranking with zone-based importance weighting.
 Designed to work with disk-based index (no full loading into memory).
 """
@@ -41,6 +40,33 @@ class SearchEngine:
 
         self.total_docs = self.manifest["total_docs"]
         self.index_path = self.index_dir / "final_index.gz"
+
+        # Load HITS scores if available
+        hits_path = self.index_dir / "hits_scores.json"
+        if hits_path.exists():
+            with open(hits_path, "r") as f:
+                hits_data = json.load(f)
+                self.auth_scores = {int(k): v for k, v in hits_data.get("auth_scores", {}).items()}
+                self.hub_scores = {int(k): v for k, v in hits_data.get("hub_scores", {}).items()}
+            print(f"[HITS] Loaded HITS scores for {len(self.auth_scores)} documents", file=sys.stderr)
+        else:
+            self.auth_scores = {}
+            self.hub_scores = {}
+            print(f"[WARN] No HITS scores found. Run hits.py to generate them for better ranking.", file=sys.stderr)
+
+        # Load PageRank scores if available
+        pagerank_path = self.index_dir / "pagerank_scores.json"
+        if pagerank_path.exists():
+            with open(pagerank_path, "r") as f:
+                pr_data = json.load(f)
+                self.pagerank_scores = {int(k): v for k, v in pr_data.get("pagerank_scores", {}).items()}
+            # Compute max PageRank for normalization
+            self.max_pagerank = max(self.pagerank_scores.values()) if self.pagerank_scores else 1.0
+            print(f"[PageRank] Loaded PageRank scores for {len(self.pagerank_scores)} documents", file=sys.stderr)
+        else:
+            self.pagerank_scores = {}
+            self.max_pagerank = 1.0
+            print(f"[WARN] No PageRank scores found. Run pagerank.py to generate them for better ranking.", file=sys.stderr)
 
         # Load chunk manifest if it exists (for fast lookups)
         chunks_manifest_path = self.index_dir / "chunks_manifest.json"
@@ -193,6 +219,7 @@ class SearchEngine:
     def search(self, query: str, top_k: int = 10):
         """
         Search for query and return top-k ranked results.
+        Integrates HITS authority and PageRank scores if available.
 
         Returns: list of (url, score) tuples
         """
@@ -206,8 +233,39 @@ class SearchEngine:
         if not query_terms:
             return []
 
-        # Calculate scores
+        # Calculate TF-IDF scores
         scores = self._calculate_scores(query_terms)
+
+        # Apply link analysis boosts if available
+        # Combine TF-IDF with HITS and PageRank
+        # Strategy: Normalize each component to 0-1, then combine with weights
+        TFIDF_WEIGHT = 0.70
+        HITS_WEIGHT = 0.15
+        PAGERANK_WEIGHT = 0.15
+
+        # Normalize TF-IDF scores to 0-1 range
+        if scores:
+            max_tfidf = max(scores.values())
+            if max_tfidf > 0:
+                for docid in scores:
+                    tfidf_score = scores[docid] / max_tfidf  # 0-1 range
+
+                    # Start with normalized TF-IDF
+                    combined_score = tfidf_score * TFIDF_WEIGHT
+
+                    # Add HITS authority if available (already 0-1 normalized)
+                    if self.auth_scores:
+                        auth_score = self.auth_scores.get(docid, 0.0)
+                        combined_score += auth_score * HITS_WEIGHT
+
+                    # Add PageRank if available
+                    if self.pagerank_scores:
+                        pr_score = self.pagerank_scores.get(docid, 0.0)
+                        # Normalize PageRank to 0-1 range by dividing by max
+                        pr_score_normalized = pr_score / self.max_pagerank if self.max_pagerank > 0 else 0.0
+                        combined_score += pr_score_normalized * PAGERANK_WEIGHT
+
+                    scores[docid] = combined_score
 
         # Sort by score (descending)
         ranked = sorted(scores.items(), key=lambda x: x[1], reverse=True)
@@ -308,7 +366,7 @@ def batch_search(engine: SearchEngine, queries_file: str, output_file: str = Non
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="ICS Search Engine - Search Interface")
+    parser = argparse.ArgumentParser(description="CS 121 Search Engine - Search Interface")
     parser.add_argument("--index_dir", required=True, help="Directory containing index files")
     parser.add_argument("--no_stem", action="store_true", help="Disable stemming (must match indexer)")
     parser.add_argument("--batch", help="Batch mode: process queries from file")

@@ -41,6 +41,9 @@ def build_index(args):
     url_by_docid: Dict[int, str] = {}
     docstats: Dict[int, dict] = {}
 
+    # Link graph: docid -> list of docids it links to
+    link_graph: Dict[int, list] = collections.defaultdict(list)
+
     # Temp store for anchor extraction (src, href, tokens)
     anchors_tmp = out_dir / "anchors_tmp.jsonl"
     if anchors_tmp.exists():
@@ -123,12 +126,19 @@ def build_index(args):
                 term_positions[gram].append(i)
 
         # Anchor extraction (write temp; attribution happens after crawling)
+        # Also build link graph for HITS/PageRank
         for href, atext in anchors:
             toks = tokenize(atext)
             if stem:
                 toks = [stem(t) for t in toks]
             if toks:
                 write_jsonl(anchors_tmp, {"src": url, "href": href, "tokens": toks})
+
+            # Track outgoing links for link graph
+            href_clean = href.split("#")[0]
+            if href_clean and href_clean != url:
+                # Will resolve to docid later after all docs are indexed
+                link_graph[docid].append(href_clean)
 
         # Add postings into the in-memory partial map
         doc_len = len(uni_tokens)
@@ -267,6 +277,24 @@ def build_index(args):
 
     with open(out_dir / "docstats.json", "w", encoding="utf-8") as f:
         json.dump(docstats, f)
+
+    # Convert link graph from URLs to docIDs and save
+    print("[LINKS] Building link graph...")
+    final_link_graph = {}
+    for src_docid, href_list in link_graph.items():
+        # Convert href URLs to target docids
+        target_docids = []
+        for href_url in href_list:
+            target_docid = docid_by_url.get(href_url)
+            if target_docid is not None and target_docid != src_docid:
+                target_docids.append(target_docid)
+        if target_docids:
+            # Remove duplicates and sort
+            final_link_graph[str(src_docid)] = sorted(list(set(target_docids)))
+
+    with open(out_dir / "link_graph.json", "w", encoding="utf-8") as f:
+        json.dump(final_link_graph, f)
+    print(f"[LINKS] Saved link graph with {len(final_link_graph)} source documents")
 
     manifest = {
         "args": vars(args),
