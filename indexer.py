@@ -76,7 +76,7 @@ def build_index(args):
         if not url:
             continue
 
-        # Skip duplicate URLs (exact duplicate detection)
+        # EXTRA CREDIT: Exact Duplicate Detection 
         if url in docid_by_url:
             continue
 
@@ -95,6 +95,7 @@ def build_index(args):
         term_positions = collections.defaultdict(list)
         zone_flags = collections.defaultdict(lambda: {"t": 0, "h": 0, "b": 0})
 
+        # EXTRA CREDIT: Word Positions 
         def add_zone(text: str, flag_key: str):
             tokens = tokenize(text)
             if stem:
@@ -103,7 +104,7 @@ def build_index(args):
             content_positions.extend(tokens)
             for i, tok in enumerate(tokens):
                 term_tf[tok] += 1
-                term_positions[tok].append(base + i)
+                term_positions[tok].append(base + i)  # Track positions
                 if flag_key in ("t", "h", "b"):
                     zone_flags[tok][flag_key] = 1
 
@@ -112,7 +113,7 @@ def build_index(args):
         add_zone(" ".join(zones.get("bold", [])), "b")
         add_zone(zones.get("body", ""), "b0")  # 'b0' only for position continuity; not a scoring flag
 
-        # n-grams (start-index positions)
+        # EXTRA CREDIT: Bigrams/Trigrams
         uni_tokens = content_positions
         if args.enable_bigrams:
             for i in range(len(uni_tokens) - 1):
@@ -125,6 +126,7 @@ def build_index(args):
                 term_tf[gram] += 1
                 term_positions[gram].append(i)
 
+        # EXTRA CREDIT: Anchor Text (1 pt) + Link Graph for HITS/PageRank 
         # Anchor extraction (write temp; attribution happens after crawling)
         # Also build link graph for HITS/PageRank
         for href, atext in anchors:
@@ -145,7 +147,7 @@ def build_index(args):
         for term, tf in term_tf.items():
             pos = term_positions[term]
             pos.sort()
-            dpos = delta_encode(pos)
+            dpos = delta_encode(pos)  # EXTRA CREDIT: Word Positions 
             z = zone_flags.get(term, {"t": 0, "h": 0, "b": 0})
             entry = {
                 "d": docid,
@@ -183,6 +185,7 @@ def build_index(args):
         partial = {}
         partial_idx += 1
 
+    # EXTRA CREDIT: Anchor Text 
     # -------- Step 1 fix: build a fast anchor index --------
     # href_anchor_counts: href_url -> Counter(term)
     href_anchor_counts = collections.defaultdict(collections.Counter)
@@ -278,6 +281,7 @@ def build_index(args):
     with open(out_dir / "docstats.json", "w", encoding="utf-8") as f:
         json.dump(docstats, f)
 
+    # EXTRA CREDIT: Link Graph for HITS/PageRank 
     # Convert link graph from URLs to docIDs and save
     print("[LINKS] Building link graph...")
     final_link_graph = {}
@@ -311,7 +315,7 @@ def build_index(args):
 
 
 if __name__ == "__main__":
-    ap = argparse.ArgumentParser(description="ICS Search Indexer (extra credit features + fast anchors)")
+    ap = argparse.ArgumentParser(description="CS 121 Search Indexer (extra credit features + fast anchors)")
     ap.add_argument("--corpus_dir", required=True, help="Path to corpus root directory")
     ap.add_argument("--out_dir", required=True, help="Output directory for index files")
     ap.add_argument("--partial_flush_every", type=int, default=150000, help="Flush partial after this many postings")

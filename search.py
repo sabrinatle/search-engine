@@ -41,20 +41,23 @@ class SearchEngine:
         self.total_docs = self.manifest["total_docs"]
         self.index_path = self.index_dir / "final_index.gz"
 
-        # Load HITS scores if available
+        # EXTRA CREDIT: Load HITS scores
         hits_path = self.index_dir / "hits_scores.json"
         if hits_path.exists():
             with open(hits_path, "r") as f:
                 hits_data = json.load(f)
                 self.auth_scores = {int(k): v for k, v in hits_data.get("auth_scores", {}).items()}
                 self.hub_scores = {int(k): v for k, v in hits_data.get("hub_scores", {}).items()}
+            # Compute max HITS authority for normalization
+            self.max_auth = max(self.auth_scores.values()) if self.auth_scores else 1.0
             print(f"[HITS] Loaded HITS scores for {len(self.auth_scores)} documents", file=sys.stderr)
         else:
             self.auth_scores = {}
             self.hub_scores = {}
+            self.max_auth = 1.0
             print(f"[WARN] No HITS scores found. Run hits.py to generate them for better ranking.", file=sys.stderr)
 
-        # Load PageRank scores if available
+        # EXTRA CREDIT: Load PageRank scores 
         pagerank_path = self.index_dir / "pagerank_scores.json"
         if pagerank_path.exists():
             with open(pagerank_path, "r") as f:
@@ -253,12 +256,14 @@ class SearchEngine:
                     # Start with normalized TF-IDF
                     combined_score = tfidf_score * TFIDF_WEIGHT
 
-                    # Add HITS authority if available (already 0-1 normalized)
+                    # EXTRA CREDIT: Add HITS authority if available
                     if self.auth_scores:
                         auth_score = self.auth_scores.get(docid, 0.0)
-                        combined_score += auth_score * HITS_WEIGHT
+                        # Normalize HITS to 0-1 range by dividing by max
+                        auth_score_normalized = auth_score / self.max_auth if self.max_auth > 0 else 0.0
+                        combined_score += auth_score_normalized * HITS_WEIGHT
 
-                    # Add PageRank if available
+                    # EXTRA CREDIT: Add PageRank if available 
                     if self.pagerank_scores:
                         pr_score = self.pagerank_scores.get(docid, 0.0)
                         # Normalize PageRank to 0-1 range by dividing by max
